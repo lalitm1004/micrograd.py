@@ -1,13 +1,14 @@
 from visualize import Visualize
-from engine.node import Node
+from engine.value import Value
 
 
 def main(visualize: bool = False) -> None:
-    x = Node(0.5, label="x")
-    w = Node(3.14, label="w")
-    b = Node(-2.0, label="b")
+    x = Value(0.5, label="x")
+    w = Value(3.14, label="w")
+    b = Value(-2.0, label="b")
 
-    y = (x * w + b**2).relu()
+    y = (x * w + b).sigmoid()
+    y._label = "y"
     y.backward()
 
     print(x)

@@ -1,7 +1,7 @@
 from graphviz import Digraph
 from typing import Set, Tuple
 
-from engine.node import Node
+from engine.value import Value
 
 
 class Visualize:
@@ -13,7 +13,7 @@ class Visualize:
     """
 
     @staticmethod
-    def _trace(root: Node) -> Tuple[Set[Node], Set[Tuple[Node, Node]]]:
+    def _trace(root: Value) -> Tuple[Set[Value], Set[Tuple[Value, Value]]]:
         """
         Traces the computational graph starting from the root node
 
@@ -27,10 +27,10 @@ class Visualize:
                     - a set of edges representing dependencies between nodes
         """
 
-        nodes: Set[Node] = set()
-        edges: Set[Tuple[Node, Node]] = set()
+        nodes: Set[Value] = set()
+        edges: Set[Tuple[Value, Value]] = set()
 
-        def build(v: Node) -> None:
+        def build(v: Value) -> None:
             if v not in nodes:
                 nodes.add(v)
                 for child in v._previous:
@@ -41,7 +41,7 @@ class Visualize:
         return nodes, edges
 
     @staticmethod
-    def _format_node_label(node: Node) -> str:
+    def _format_node_label(node: Value) -> str:
         """
         Generates a formatted label for a node for visualization purposes
 
@@ -63,7 +63,7 @@ class Visualize:
         return f"{{ {' | '.join(parts)} }}"
 
     @staticmethod
-    def draw(root: Node, format: str = "svg", rankdir: str = "LR") -> Digraph:
+    def draw(root: Value, format: str = "svg", rankdir: str = "LR") -> Digraph:
         """
         Draws the computational graph rooted at the specified node
 

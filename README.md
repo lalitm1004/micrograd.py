@@ -10,7 +10,7 @@ This project is based on and implements the concepts explained in the following 
 
 ## ⛽ Features
 
-- Scalar-based `Node` class for building computation graphs
+- Scalar-based `Value` class for building computation graphs
 - Forward and backward pass support for gradient computation
 - Operator overloading for intuitive mathematical expressions
 - Basic support for:
@@ -37,15 +37,16 @@ uv run src/main.py
 ## 🕹️ Example
 ```py
 from visualize import Visualize
-from engine.node import Node
+from engine.value import Value
 
-x = Node(0.5, label="x")
-w = Node(3.14, label="w")
-b = Node(-2.0, label="b")
+x = Value(0.5, label="x")
+w = Value(3.14, label="w")
+b = Value(-2.0, label="b")
 
-y = (x * w + b**2).relu()
+y = (x * w + b).sigmoid()
+y._label = 'y'
 y.backward()
 
-Visualize.draw(y)
+Visualize.draw(y, rankdir="TB")
 ```
 ![Graph](assets/graph.svg)

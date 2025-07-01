@@ -17,14 +17,11 @@ class OperationEnum(str, Enum):
     ReLU = "relu"
 
 
-ParentNodes: TypeAlias = Union[Tuple["Node"], Tuple["Node", "Node"]]
+ParentValues: TypeAlias = Union[Tuple["Value"], Tuple["Value", "Value"]]
 OperationType: TypeAlias = Union[OperationEnum, Tuple[OperationEnum, str]]
 
-MaybeParents: TypeAlias = Optional[ParentNodes]
-MaybeOperation: TypeAlias = Optional[OperationType]
 
-
-class Node:
+class Value:
     """
     A class representing a node in a computational graph for automatic differentiation.
 
@@ -32,7 +29,7 @@ class Node:
         data `float`: The scalar value this node holds.
         grad `float`: The gradient of this node, used during backpropagation
         _previous `Set[Node]`: The parent nodes that this node originates from
-        _operation `MaybeOperation`: The operation that produced this node
+        _operation `Optional[OperationType]`: The operation that produced this node
         _label `Optional[str]`: An optional label for the node
         _backward `Callable[[], None]`: A function that defines how the gradient should be propagated
     """
@@ -40,8 +37,8 @@ class Node:
     def __init__(
         self,
         data: Union[int, float],
-        previous: MaybeParents = None,
-        operation: MaybeOperation = None,
+        previous: Optional[ParentValues] = None,
+        operation: Optional[OperationType] = None,
         label: Optional[str] = None,
     ) -> None:
         """
@@ -49,15 +46,14 @@ class Node:
 
         Args
             data `Union[int, float]`: The value held by the node
-            previous `MaybeParents`: Parent nodes this node depends on
-            operation `MaybeOperation`: Operation used to compute this node
+            previous `Optional[ParentNodes]`: Parent nodes this node depends on
+            operation `Optional[OperationType]`: Operation used to compute this node
             label `Optional[str]`: Optional label for the node
         """
-
         self.data = float(data)
         self.grad = 0.0
 
-        self._previous: Set[Node] = set(previous) if previous is not None else set()
+        self._previous: Set[Value] = set(previous) if previous is not None else set()
         self._operation = operation
         self._label = label
 
@@ -68,11 +64,10 @@ class Node:
         Performs backpropagation through the computational graph to compute gradients
         for all nodes that affect the current node.
         """
+        topo: List[Value] = []
+        visited: Set[Value] = set()
 
-        topo: List[Node] = []
-        visited: Set[Node] = set()
-
-        def build_topo(v: Node) -> None:
+        def build_topo(v: Value) -> None:
             if v not in visited:
                 visited.add(v)
                 for child in v._previous:
@@ -85,15 +80,14 @@ class Node:
         for v in reversed(topo):
             v._backward()
 
-    def sigmoid(self) -> "Node":
+    def sigmoid(self) -> "Value":
         """
         Applies the sigmoid activation function to the node
 
         Returns
             `Node`: A new node representing the sigmoid of this node
         """
-
-        out = Node(1 / (1 + math.exp(-self.data)), (self,), OperationEnum.SIGMOID)
+        out = Value(1 / (1 + math.exp(-self.data)), (self,), OperationEnum.SIGMOID)
 
         def _backward() -> None:
             self.grad = out.data * (1 - out.data) * out.grad
@@ -102,15 +96,14 @@ class Node:
 
         return out
 
-    def relu(self) -> "Node":
+    def relu(self) -> "Value":
         """
         Applies the ReLU activation function to the node
 
         Returns
             `Node`: A new node representing the ReLU of this node
         """
-
-        out = Node(0 if self.data <= 0 else self.data, (self,), OperationEnum.ReLU)
+        out = Value(0 if self.data <= 0 else self.data, (self,), OperationEnum.ReLU)
 
         def _backward() -> None:
             self.grad += (out.data > 0) * out.grad
@@ -119,16 +112,15 @@ class Node:
 
         return out
 
-    def __add__(self, other: Union["Node", int, float]) -> "Node":
+    def __add__(self, other: Union["Value", int, float]) -> "Value":
         """
         Adds this node to another node or number
 
         Returns
             `Node`: Resulting node after addition
         """
-
-        other = other if isinstance(other, Node) else Node(other)
-        out = Node(self.data + other.data, (self, other), OperationEnum.ADD)
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data + other.data, (self, other), OperationEnum.ADD)
 
         def _backward() -> None:
             self.grad += out.grad
@@ -138,16 +130,15 @@ class Node:
 
         return out
 
-    def __mul__(self, other: Union["Node", int, float]) -> "Node":
+    def __mul__(self, other: Union["Value", int, float]) -> "Value":
         """
         Multiplies this node with another node or number
 
         Returns
             `Node`: Resulting node after addition
         """
-
-        other = other if isinstance(other, Node) else Node(other)
-        out = Node(self.data * other.data, (self, other), OperationEnum.MULTIPLY)
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data * other.data, (self, other), OperationEnum.MULTIPLY)
 
         def _backward() -> None:
             self.grad += other.data * out.grad
@@ -157,7 +148,7 @@ class Node:
 
         return out
 
-    def __pow__(self, other: Union[int, float]) -> "Node":
+    def __pow__(self, other: Union[int, float]) -> "Value":
         """
         Raises this node to the power of a number.
 
@@ -167,8 +158,7 @@ class Node:
         Returns
             `Node`: Resulting node after exponentiation.
         """
-
-        out = Node(self.data**other, (self,), (OperationEnum.POWER, f"{other}"))
+        out = Value(self.data**other, (self,), (OperationEnum.POWER, f"{other}"))
 
         def _backward():
             self.grad += (other * self.data ** (other - 1)) * out.grad
@@ -177,53 +167,46 @@ class Node:
 
         return out
 
-    def __neg__(self) -> "Node":
+    def __neg__(self) -> "Value":
         """
         -self
         """
-
         return self * -1
 
-    def __radd__(self, other: Union["Node", int, float]) -> "Node":
+    def __radd__(self, other: Union["Value", int, float]) -> "Value":
         """
         other + self
         """
-
         return self + other
 
-    def __sub__(self, other: Union["Node", int, float]) -> "Node":
+    def __sub__(self, other: Union["Value", int, float]) -> "Value":
         """
         self - other
         """
-
         return self + (-other)
 
-    def __rsub__(self, other: Union["Node", int, float]) -> "Node":
+    def __rsub__(self, other: Union["Value", int, float]) -> "Value":
         """
         other - self
         """
-
         return other + (-self)
 
-    def __rmul__(self, other: Union["Node", int, float]) -> "Node":
+    def __rmul__(self, other: Union["Value", int, float]) -> "Value":
         """
         other * self
         """
-
         return self * other
 
-    def __truediv__(self, other: Union["Node", int, float]) -> "Node":
+    def __truediv__(self, other: Union["Value", int, float]) -> "Value":
         """
         self / other
         """
-
         return self * other**-1
 
-    def __rtruediv__(self, other: Union["Node", int, float]) -> "Node":
+    def __rtruediv__(self, other: Union["Value", int, float]) -> "Value":
         """
         other / self
         """
-
         return other * self**-1
 
     def __repr__(self) -> str:
@@ -233,5 +216,4 @@ class Node:
         Returns
             `str`: The string representation.
         """
-
         return f"Value(data={self.data}, grad={self.grad})"
